@@ -236,11 +236,21 @@ def alocar_cargas(m, n, cargas, posicoes_iniciais_ocupadas=None):
                     prob += C[linha_atual][coluna_atual] == 1, f"Carga_na_posicao_{linha_atual}_{coluna_atual}"
                 carga.alocada = True
 
+
+
+                if primeira_carga_alocada == True and posicoes_ocupadas[linha_atual][coluna_atual].ocupado == True and posicoes_ocupadas[linha_atual][coluna_atual - 1].ocupado == False:
+                    coluna_atual = n - 1
+                    linha_atual = 0  
+                    print(carga)
+
                 # Marca que a primeira carga foi alocada e reseta a coluna
-                if not primeira_carga_alocada and    posicoes_ocupadas[linha_atual][coluna_atual].ocupado == True:
+                if  primeira_carga_alocada == False and posicoes_ocupadas[linha_atual][coluna_atual].ocupado == True:
                     primeira_carga_alocada = True
-                    coluna_atual = n - 1  # Resetando para a última coluna para o próximo ciclo
-                    linha_atual = 0       # Opcional: reinicia a linha
+
+                #     if coluna_atual > 0 and posicoes_ocupadas[linha_atual][coluna_atual - 1].ocupado == False:
+                #         coluna_atual = n - 1  # Resetando para a última coluna para o próximo ciclo
+                #         linha_atual = 0    
+
             else:
                 if(verificar_carga_alocada(cargas) == False):
                     coluna_atual -= 1
@@ -297,12 +307,12 @@ def plot_boxes(m, n, posicoes_ocupadas):
 # Configuração de exemplo
 m, n = 5, 10  # Dimensões da matriz
 
-# Lista de cargas
 cargas = [ Carga(carga=1, volume=1), Carga(carga=2, volume=1),
            Carga(carga=3, volume=1), Carga(carga=4, volume=1), 
            Carga(carga=5, volume=1), Carga(carga=6, volume=1),
            Carga(carga=7, volume=1), Carga(carga=8, volume=1),
            Carga(carga=8, volume=1), Carga(carga=8, volume=1)]
+
 
 cargas_ordenadas = sorted(cargas, key=lambda carga: carga.volume,reverse=True)
 
