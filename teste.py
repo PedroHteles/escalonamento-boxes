@@ -2,6 +2,7 @@ from pulp import LpProblem, LpVariable, LpMinimize
 import matplotlib.pyplot as plt
 import sqlite3
 
+import matplotlib.colors as mcolors
 
 
 class Box:
@@ -18,34 +19,40 @@ class Box:
     def __repr__(self):
         return f"Box(id={self.id}, ocupado={self.ocupado}, cargas={self.cargas}) \n"
 
+    def verificar_carga(self):
+        """Verifica se o box já possui alguma carga alocada."""
+        return len(self.cargas) > 0  # Retorna True se houver cargas no box.
+    
     def verificar_volume(self, carga):
         """Verifica se a soma do volume das cargas atuais e a carga a ser adicionada não ultrapassa o volume do box."""
         volume_total = sum(c.volume for c in self.cargas) + carga.volume
         return volume_total <= (self.volume * 2)
 
-
     def alocar_carga(self, carga):
         if len(self.cargas) < 2 and self.ocupado == False:
-            self.cargas.append(carga)
 
             if carga.volume > self.volume:
+                self.cargas.append(carga)
                 self.ocupado = True  # O box fica ocupado quando 2 cargas estão alocadas.
                 return True  # Retorna True indicando que o box foi ocupado.
-    
-            if len(self.cargas) == 2:
-                self.ocupado = True  # O box fica ocupado quando 2 cargas estão alocadas.
-                return True  # Retorna True indicando que o box foi ocupado.
+            else:
+                if len(self.cargas) <= 2:
+                    self.cargas.append(carga)
+                    if len(self.cargas) == 2:
+                        self.ocupado = True  # O box fica ocupado quando 2 cargas estão alocadas.
+                        return True  # Retorna True indicando que o box foi ocupado.
 
         return False  # Retorna False caso o box não tenha sido ocupado (menos de 2 cargas).
 
 class Carga:
-    def __init__(self, carga, volume, alocada=False):
+    def __init__(self, carga, volume, alocada=False,grupo=None):
         self.carga = carga  # Peso da carga
         self.volume = volume  # Volume da carga
         self.alocada = alocada  # Volume da carga
+        self.grupo = grupo  # Volume da carga
 
     def __repr__(self):
-        return f"Carga(carga={self.carga}, volume={self.volume})"
+        return f"Carga(carga={self.carga}, volume={self.volume}, grupro={self.grupo})"
     
 def verificar_carga_alocada(cargas):
     for carga in cargas:
@@ -53,10 +60,18 @@ def verificar_carga_alocada(cargas):
             return True
     return False
 
+def verificar_se_alguma_carga_alocada(cargas):
+    return any(carga.alocada for carga in cargas)
+
 
 def criar_tabelas():
+    """
+    Cria as tabelas boxes e cargas no banco de dados, caso elas não existam.
+    """
     conn = sqlite3.connect("boxes.db")
     cursor = conn.cursor()
+
+    # Tabela boxes
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS boxes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -66,20 +81,24 @@ def criar_tabelas():
         volume INT DEFAULT 5
     )
     """)
+
+    # Tabela cargas
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS cargas (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         box_id INT,
         carga INT NOT NULL,
         volume FLOAT NOT NULL,
+        idGrupo INT DEFAULT NULL,
         FOREIGN KEY (box_id) REFERENCES boxes (id)
     )
     """)
+
     conn.commit()
     conn.close()
 
 
-def atualizar_banco_com_cargas(m, n, posicoes_ocupadas):
+def atualizar_banco_com_cargas(m, n, posicoes_ocupadas, idGrupo):
     """
     Atualiza a base de dados com a alocação de cargas nos boxes.
     """
@@ -100,14 +119,12 @@ def atualizar_banco_com_cargas(m, n, posicoes_ocupadas):
                 # Atualiza a tabela de cargas associadas ao box
                 for carga in box.cargas:
                     cursor.execute("""
-                        INSERT INTO cargas (box_id, carga, volume) 
-                        VALUES ((SELECT id FROM boxes WHERE linha = ? AND coluna = ?), ?, ?)
-                    """, (i, j, carga.carga, carga.volume))
+                        INSERT INTO cargas (box_id, carga, volume, idGrupo) 
+                        VALUES ((SELECT id FROM boxes WHERE linha = ? AND coluna = ?), ?, ?, ?)
+                    """, (i, j, carga.carga, carga.volume, idGrupo))
 
     conn.commit()
     conn.close()
-
-
 
 def inserir_boxes(matriz):
     conn = sqlite3.connect("boxes.db")
@@ -143,7 +160,7 @@ def recuperar_matriz(m, n):
     boxes = cursor.fetchall()
 
     # Recupera todas as cargas
-    cursor.execute("SELECT id, box_id, carga, volume FROM cargas")
+    cursor.execute("SELECT id,box_id, carga,volume,idGrupo FROM cargas")
     cargas = cursor.fetchall()
     conn.close()
 
@@ -153,14 +170,13 @@ def recuperar_matriz(m, n):
         box_id = carga[1]
         if box_id not in cargas_por_box:
             cargas_por_box[box_id] = []
-        cargas_por_box[box_id].append(Carga(carga=carga[2], volume=carga[3]))
+        cargas_por_box[box_id].append(Carga(carga=carga[2], volume=carga[3], grupo=carga[4]))
 
     matriz = [[None for _ in range(n)] for _ in range(m)]
 
     for box in boxes:
         box_id, linha, coluna, ocupado, volume = box
 
-        print(box)    
         # Verifique se os índices de linha e coluna são válidos
         if linha >= m or coluna >= n or linha < 0 or coluna < 0:
             print(f"Índices inválidos: linha={linha}, coluna={coluna}")
@@ -183,9 +199,6 @@ def recuperar_matriz(m, n):
         print(linha)
 
     return matriz
-
-
-
 
 def alocar_cargas(m, n, cargas, posicoes_iniciais_ocupadas=None):
     prob = LpProblem("Alocacao_de_Boxes", LpMinimize)
@@ -222,6 +235,7 @@ def alocar_cargas(m, n, cargas, posicoes_iniciais_ocupadas=None):
 
     linha_atual, coluna_atual = 0, n - 1
     primeira_carga_alocada = False 
+    teste = False
     for carga in cargas:
 
         while not carga.alocada:
@@ -229,28 +243,84 @@ def alocar_cargas(m, n, cargas, posicoes_iniciais_ocupadas=None):
             if (linha_atual < m and 
                 coluna_atual >= 0 and 
                 posicoes_ocupadas[linha_atual][coluna_atual].ocupado == False 
-                and (len(posicoes_ocupadas[i][j].cargas) ==  0  or posicoes_ocupadas[linha_atual][coluna_atual].verificar_volume(carga) == True)): 
+                and (len(posicoes_ocupadas[i][j].cargas) ==  0  or  (
+                                                                     (len(posicoes_ocupadas[linha_atual][coluna_atual].cargas)  and 
+                                                                      posicoes_ocupadas[linha_atual][coluna_atual].verificar_volume(carga) == True) or
+                                                                       (len(posicoes_ocupadas[linha_atual][coluna_atual].cargas) == 0 )
+                                                                       ))): 
               
-                # Adiciona a carga ao box
-                if posicoes_ocupadas[linha_atual][coluna_atual].alocar_carga(carga):
-                    prob += C[linha_atual][coluna_atual] == 1, f"Carga_na_posicao_{linha_atual}_{coluna_atual}"
-                carga.alocada = True
+                    if(posicoes_ocupadas[linha_atual][coluna_atual].verificar_volume(carga) == False ):
+                        if not posicoes_ocupadas[linha_atual][coluna_atual].verificar_volume(carga):
+
+                            while linha_atual <= m:
+                                # Verifica se é uma linha ímpar e se está disponível
+                                if linha_atual % 2 == 1 and not posicoes_ocupadas[linha_atual][coluna_atual].ocupado:
+                                    # Verifica se a linha sucessora também está disponível
+                                    if linha_atual + 1 <= m and not posicoes_ocupadas[linha_atual + 1][coluna_atual].ocupado:
+                                        # Aloca a carga na linha atual e na sucessora
+                                        if posicoes_ocupadas[linha_atual][coluna_atual].alocar_carga(carga) and \
+                                            posicoes_ocupadas[linha_atual + 1][coluna_atual].alocar_carga(carga):
+
+                                            prob += C[linha_atual][coluna_atual] == 1, f"Carga_na_posicao_{linha_atual}_{coluna_atual}"
+                                            prob += C[linha_atual + 1][coluna_atual] == 1, f"Carga_na_posicao_{linha_atual + 1}_{coluna_atual}"
+                                            carga.alocada = True
+                                            break  # Saia do loop ao alocar com sucesso
+                                # Avança para a próxima linha
+                                linha_atual += 1
+                    else: 
+                        if ( primeira_carga_alocada == False and  verificar_se_alguma_carga_alocada(cargas) == True) or primeira_carga_alocada == True or  primeira_carga_alocada== False :
+                            print(f"caiu estou { verificar_se_alguma_carga_alocada(cargas)}")
+                            if(primeira_carga_alocada == False and  verificar_se_alguma_carga_alocada(cargas) == True) and \
+                                teste == False:
+                                coluna_atual = n - 1
+                                linha_atual = 0  
+                                teste = True
+                           
+                            if (linha_atual < m and 
+                                coluna_atual >= 0 and 
+                                (verificar_se_alguma_carga_alocada(cargas) == False or 
+                                    ( verificar_se_alguma_carga_alocada(cargas) == True and ( (primeira_carga_alocada == False and linha_atual == 0) or (primeira_carga_alocada == True and linha_atual >= 0) ) ))and 
+                                posicoes_ocupadas[linha_atual][coluna_atual].ocupado == False): 
+                            
+                                # Adiciona a carga ao box
+                                if posicoes_ocupadas[linha_atual][coluna_atual].alocar_carga(carga):
+                                    print("wtf")
+                                    prob += C[linha_atual][coluna_atual] == 1, f"Carga_na_posicao_{linha_atual}_{coluna_atual}"
+                                carga.alocada = True
 
 
+                                if primeira_carga_alocada == True and \
+                                   posicoes_ocupadas[linha_atual][coluna_atual].ocupado == True and \
+                                   posicoes_ocupadas[linha_atual][coluna_atual - 1].ocupado == False:
+                                   
+                                    coluna_atual = n - 1
+                                    linha_atual = 0  
 
-                if primeira_carga_alocada == True and posicoes_ocupadas[linha_atual][coluna_atual].ocupado == True and posicoes_ocupadas[linha_atual][coluna_atual - 1].ocupado == False:
-                    coluna_atual = n - 1
-                    linha_atual = 0  
-                    print(carga)
+                                # Marca que a primeira carga foi alocada e reseta a coluna
+                                if  primeira_carga_alocada == False and \
+                                    (posicoes_ocupadas[linha_atual][coluna_atual].ocupado == True or posicoes_ocupadas[linha_atual][coluna_atual].verificar_carga() == True ):
+                                    primeira_carga_alocada = True
 
-                # Marca que a primeira carga foi alocada e reseta a coluna
-                if  primeira_carga_alocada == False and posicoes_ocupadas[linha_atual][coluna_atual].ocupado == True:
-                    primeira_carga_alocada = True
-
-                #     if coluna_atual > 0 and posicoes_ocupadas[linha_atual][coluna_atual - 1].ocupado == False:
-                #         coluna_atual = n - 1  # Resetando para a última coluna para o próximo ciclo
-                #         linha_atual = 0    
-
+                            else:
+                                if( primeira_carga_alocada == False or verificar_carga_alocada(cargas) == False):
+                                    coluna_atual -= 1
+                                    linha_atual = 0
+                                else:
+                                    if linha_atual == m - 1:
+                                        coluna_atual -= 1
+                                        linha_atual = 1
+                                    else:
+                                        linha_atual += 1
+                        else:
+                                if(verificar_carga_alocada(cargas) == False):
+                                    coluna_atual -= 1
+                                else:
+                                    if linha_atual == m - 1:
+                                        coluna_atual -= 1
+                                        linha_atual = 1
+                                    else:
+                                        linha_atual += 1
+                                  
             else:
                 if(verificar_carga_alocada(cargas) == False):
                     coluna_atual -= 1
@@ -282,19 +352,49 @@ def plot_boxes(m, n, posicoes_ocupadas):
     for j in range(n + 1):
         ax.plot([j, j], [0, m], color="gray", linewidth=0.5)
 
+    # Extrair os grupos únicos para atribuir cores
+    grupos = set()
+    for row in posicoes_ocupadas:
+        for box in row:
+            if box.ocupado:
+                grupos.update(carga.grupo for carga in box.cargas)
+
+    # Utilizar cores vivas da paleta do Matplotlib
+    cores_vivas = list(mcolors.TABLEAU_COLORS.values()) + list(mcolors.CSS4_COLORS.values())
+    grupo_to_color = {grupo: cores_vivas[i % len(cores_vivas)] for i, grupo in enumerate(grupos)}
+
     # Adicionar os números dos boxes e as cargas
     for i in range(m):
         for j in range(n):
             box = posicoes_ocupadas[i][j]
+
             # Mostrar a posição do box
             ax.text(j + 0.5, m - i - 0.5, f"({i},{j})", fontsize=7, ha="center", va="center")
 
             # Marcar cargas alocadas
             if box.ocupado:
-                ax.plot(j + 0.5, m - i - 0.5, 'ro', markersize=10)  # Ponto vermelho para cargas
-                for idx, carga in enumerate(box.cargas):
-                    carga_exibida = carga.carga if hasattr(carga, 'carga') else str(carga)
-                    ax.text(j + 0.5, m - i - 0.5 - (idx * 0.3), carga_exibida, fontsize=9, ha="center", va="center", color="white")
+                
+                # Criar lista com as cargas como string
+                cargas_exibidas = [str(carga.carga) for carga in box.cargas]
+                
+                # Unir as cargas em uma única string separada por "/"
+                carga_exibida_final = "/".join(cargas_exibidas)
+                
+                # Pegar o grupo (já que é único para o box)
+                grupo = box.cargas[0].grupo if box.cargas else None
+                cor = grupo_to_color.get(grupo, "black")
+                
+                # Posição do ponto no gráfico
+                ponto_x = j + 0.5
+                ponto_y = m - i - 0.5
+                
+                # Marcar o ponto com a cor do grupo
+                ax.plot(ponto_x, ponto_y, 'o', color=cor, markersize=10)
+                
+                # Exibir o texto com a cor do grupo abaixo do ponto
+                ax.text(ponto_x, ponto_y - 0.3,  # Ajustando a posição Y para exibir abaixo
+                        carga_exibida_final, fontsize=9, ha="center", va="center", color=cor)
+            
 
     ax.set_xlim(0, n)
     ax.set_ylim(0, m)
@@ -305,13 +405,17 @@ def plot_boxes(m, n, posicoes_ocupadas):
 
 
 # Configuração de exemplo
-m, n = 5, 10  # Dimensões da matriz
+m, n = 9, 10  # Dimensões da matriz
+matriz_inicial = [[Box(i, j) for j in range(n)] for i in range(m)]
+inserir_boxes(matriz_inicial)
+criar_tabelas()
 
-cargas = [ Carga(carga=1, volume=1), Carga(carga=2, volume=1),
-           Carga(carga=3, volume=1), Carga(carga=4, volume=1), 
-           Carga(carga=5, volume=1), Carga(carga=6, volume=1),
-           Carga(carga=7, volume=1), Carga(carga=8, volume=1),
-           Carga(carga=8, volume=1), Carga(carga=8, volume=1)]
+cargas = [ Carga(carga=6, volume=15,grupo=2), Carga(carga=13, volume=15,grupo=2),
+           Carga(carga=7, volume=1,grupo=2), Carga(carga=14, volume=1,grupo=2), 
+           Carga(carga=8, volume=1,grupo=2), Carga(carga=15, volume=1,grupo=2),
+           Carga(carga=9, volume=1,grupo=2), Carga(carga=16, volume=1,grupo=2),
+           Carga(carga=10, volume=1,grupo=2), Carga(carga=17,volume=1,grupo=2),
+           Carga(carga=10, volume=1,grupo=2), Carga(carga=17,volume=1,grupo=2)]
 
 
 cargas_ordenadas = sorted(cargas, key=lambda carga: carga.volume,reverse=True)
@@ -322,11 +426,54 @@ cargas = [Carga(carga=i, volume=5) for i in range(1, 11)]
 # Recuperar a matriz do banco de dados
 matriz = recuperar_matriz(m, n)
 
-
+print("agora")
 _, posicoes_ocupadas  = alocar_cargas(m, n, cargas_ordenadas, matriz)
 
+# atualizar_banco_com_cargas(m, n, posicoes_ocupadas, idGrupo=1)
 
-# atualizar_banco_com_cargas(m,n,posicoes_ocupadas)
+cargas = [ Carga(carga=20, volume=5,grupo=3), Carga(carga=22, volume=5,grupo=3),
+           Carga(carga=21, volume=1,grupo=3), Carga(carga=23, volume=1,grupo=3), ]
+
+cargas_ordenadas = sorted(cargas, key=lambda carga: carga.volume,reverse=True)
+
+
+_, posicoes_ocupadas  = alocar_cargas(m, n, cargas_ordenadas, posicoes_ocupadas)
+
+cargas = [ Carga(carga=24, volume=12,grupo=4), Carga(carga=55, volume=1,grupo=4),
+           Carga(carga=25, volume=1,grupo=4), Carga(carga=56, volume=1,grupo=4), 
+           Carga(carga=26, volume=1,grupo=4), Carga(carga=57, volume=1,grupo=4),
+           Carga(carga=27, volume=1,grupo=4), Carga(carga=58, volume=1,grupo=4),
+           Carga(carga=28, volume=1,grupo=4), Carga(carga=59, volume=1,grupo=4),
+           Carga(carga=29, volume=1,grupo=4), Carga(carga=60, volume=1,grupo=4),
+           Carga(carga=30, volume=1,grupo=4), Carga(carga=61, volume=1,grupo=4),
+           Carga(carga=31, volume=1,grupo=4), Carga(carga=62, volume=1,grupo=4),
+           Carga(carga=32, volume=1,grupo=4), Carga(carga=63, volume=1,grupo=4),
+           Carga(carga=33, volume=1,grupo=4), Carga(carga=64, volume=1,grupo=4),
+           Carga(carga=34, volume=1,grupo=4), Carga(carga=65, volume=1,grupo=4),
+           Carga(carga=35, volume=1,grupo=4), Carga(carga=66, volume=1,grupo=4),
+           Carga(carga=36, volume=1,grupo=4), Carga(carga=67, volume=1,grupo=4),
+           Carga(carga=37, volume=1,grupo=4), Carga(carga=68, volume=1,grupo=4), 
+           Carga(carga=38, volume=1,grupo=4), Carga(carga=69, volume=1,grupo=4),
+           Carga(carga=39, volume=1,grupo=4), Carga(carga=70, volume=1,grupo=4),
+           Carga(carga=40, volume=1,grupo=4), Carga(carga=71, volume=1,grupo=4),
+           Carga(carga=41, volume=12,grupo=4), Carga(carga=72, volume=1,grupo=4)
+        ]
+
+
+cargas_ordenadas = sorted(cargas, key=lambda carga: carga.volume,reverse=True)
+
+_, posicoes_ocupadas  = alocar_cargas(m, n, cargas_ordenadas, posicoes_ocupadas)
+
+
+cargas = [ Carga(carga=99, volume=1,grupo=5), Carga(carga=100, volume=1,grupo=5),
+           Carga(carga=101, volume=1,grupo=5), Carga(carga=102, volume=1,grupo=5), ]
+
+cargas_ordenadas = sorted(cargas, key=lambda carga: carga.volume,reverse=True)
+
+print("caso4")
+_, posicoes_ocupadas  = alocar_cargas(m, n, cargas_ordenadas, posicoes_ocupadas)
+
+# atualizar_banco_com_cargas(m, n, posicoes_ocupadas, idGrupo=1)
 # print(posicoes_ocupadas)
 # Plotar o resultado
 plot_boxes(m, n, posicoes_ocupadas)
