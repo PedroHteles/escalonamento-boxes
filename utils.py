@@ -1,8 +1,10 @@
 
-import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
 
 def plot_boxes(m, n, posicoes_ocupadas):
+    
+    import matplotlib.pyplot as plt
+    import matplotlib.colors as mcolors
+    
     fig, ax = plt.subplots(figsize=(8, 8))
 
     # Criar uma grade

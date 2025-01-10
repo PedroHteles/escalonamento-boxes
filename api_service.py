@@ -37,19 +37,25 @@ def verificar_cargas():
         # Criando uma nova lista ordenada
         cargas_sorted = sorted(cargas, key=lambda carga: carga.sequencia, reverse=False)
         
-        gravou ,carga_positions,posicoes_ocupadas,cargas_nao_alocadas,matriz = alocar(m,n, cargas_sorted,5,10)    
+        gravou ,carga_positions,posicoes_ocupadas,cargas_nao_alocadas,carga_alocada_box_carregamento,matriz = alocar(m,n, cargas_sorted,5,12)    
         # Aplicando a função
         matriz_transformada = transformar_matriz(posicoes_ocupadas)
+        plot_boxes(m,n, posicoes_ocupadas)
         plot_boxes(5,10, matriz_transformada)
         
-        if(gravou):
+        if(gravou and carga_alocada_box_carregamento):
             return jsonify({
             "carga_alocada":  [box.to_dict() for box in carga_positions]
         }), 200
         else:
-            return jsonify({
-            "msg": f"Para alocar necessita de {len(cargas_nao_alocadas)} boxes disponiveis!"
-             }), 400
+            if(not carga_alocada_box_carregamento):
+                return jsonify({
+                "msg": f"Problema ao escalar box carregamento"
+                }), 400
+            else:
+                return jsonify({
+                "msg": f"Para alocar necessita de {len(cargas_nao_alocadas)} boxes disponiveis!"
+                }), 400
 
         # Retornando a resposta
 
