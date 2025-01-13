@@ -1,6 +1,6 @@
 from pulp import LpProblem, LpVariable, LpMinimize
 from carga import verificar_carga_alocada,verificar_se_alguma_carga_alocada,verificar_se_todos_volumes_e_superior
-from box import Box,desocupar_boxes
+from box import Box
 from dbUtils import criar_tabelas,contar_boxes_desocupados,inserir_boxes,inserir_boxes_reais,recuperar_matriz,verificar_cargas_gravadas
 
 def mover_linha(bolean, linha_atual, coluna_atual, m):
@@ -15,7 +15,6 @@ def mover_linha(bolean, linha_atual, coluna_atual, m):
             linha_atual += 1
     return linha_atual, coluna_atual
 
-
 def alocar_em_linhas_impares(carga, linha_atual, coluna_atual, m, posicoes_ocupadas, prob, C,volume = 5):
     """
     Tenta alocar a carga em uma linha ímpar e na linha sucessora (caso estejam disponíveis).
@@ -24,7 +23,6 @@ def alocar_em_linhas_impares(carga, linha_atual, coluna_atual, m, posicoes_ocupa
     while not carga.alocada:
         
         if linha_atual >= m or (linha_atual == m - 1 and coluna_atual < 0):
-            print("Passamos da última posição da matriz. Encerrando o loop.")
             break
         
         if linha_atual % 2 == 1 and not posicoes_ocupadas[linha_atual][coluna_atual].ocupado:
@@ -53,11 +51,9 @@ def alocar_carga(carga, posicoes_ocupadas, linha_atual, coluna_atual, m, n, prob
 
     while not carga.alocada:
         if linha_atual >= m or (linha_atual == m - 1 and coluna_atual < 0):
-            print("Passamos da última posição da matriz. Encerrando o loop.")
             break
 
         posicao_atual_ocupada = posicoes_ocupadas[linha_atual][coluna_atual].ocupado
-        print(f"teste carga:{carga} :{not posicoes_ocupadas[linha_atual][coluna_atual].verificar_volume(carga, volume_box_duplo)}")
         if linha_atual < m and coluna_atual >= 0 and not posicao_atual_ocupada:
             if not posicoes_ocupadas[linha_atual][coluna_atual].verificar_volume(carga, volume_box_duplo) and not carga.forcar_escala_box_veiculo:
                 carga, prob, linha_atual, coluna_atual, sucesso = alocar_em_linhas_impares(
@@ -104,9 +100,7 @@ def alocar_carga(carga, posicoes_ocupadas, linha_atual, coluna_atual, m, n, prob
                         and not posicao_atual_ocupada
                     ):
                         if posicoes_ocupadas[linha_atual][coluna_atual].alocar_carga(carga, volume):
-                            
-                            print(f"entrou aq carga:{carga} linha_atual:{linha_atual} coluna_atual:{coluna_atual}")
-                            
+                                                        
                             prob += C[linha_atual][coluna_atual] == 1, f"Carga{carga.carga}_na_posicao_{linha_atual}_{coluna_atual}"
                             posicao_atual_ocupada = posicoes_ocupadas[linha_atual][coluna_atual].ocupado
 
@@ -216,8 +210,7 @@ def iniciar_alocacao_reais(m,n):
     criar_tabelas()
     matriz_inicial = [[Box(i, j) for j in range(n)] for i in range(m)]
     inserir_boxes_reais(matriz_inicial)
-    
-    
+
 def alocar(m,n, cargas,volume, volume_box_duplo):    
     matriz = recuperar_matriz(m, n)
     cargas_filtradas = verificar_cargas_gravadas(cargas)

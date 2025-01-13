@@ -91,9 +91,7 @@ def plot_boxes(m, n, posicoes_ocupadas):
         for j, carga in enumerate(info['cargas']):
             # Filtrar o box baseado no ID
             if(len(carga.box) > 1):
-                    print(f"deu ruim carga:{carga.carga}")
                     # Filtrar o box baseado no ID
-                    
                     menor_id = min([box.id for box in carga.box], key=lambda x: int(x.split('-')[0]))
 
                     box_encontrado = next((b for b in info['boxes'] if b.id == menor_id), None)
@@ -132,9 +130,7 @@ def plot_boxes(m, n, posicoes_ocupadas):
 
 
 
-def plot_boxes_v1(m, n, posicoes_ocupadas):
-    print(f"plot_boxes_v1:{posicoes_ocupadas}")
-    
+def plot_boxes_v1(m, n, posicoes_ocupadas):    
     import matplotlib.pyplot as plt
     import matplotlib.colors as mcolors
     
@@ -325,4 +321,3 @@ def imprimir_tamanho_matriz(matriz):
     # Número de colunas da matriz (assumindo que todas as linhas têm o mesmo número de colunas)
     num_colunas = len(matriz[0]) if num_linhas > 0 else 0
     
-    print(f"Tamanho da matriz: {num_linhas} linhas x {num_colunas} colunas")

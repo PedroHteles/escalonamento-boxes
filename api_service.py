@@ -40,16 +40,14 @@ def verificar_cargas():
         
         gravou ,carga_positions,posicoes_ocupadas,cargas_nao_alocadas,carga_alocada_box_carregamento,matriz = alocar(m,n, cargas_sorted,5,12)    
 
-        print(f"alocar:{posicoes_ocupadas}")
         # Aplicando a função
         matriz_transformada = transformar_matriz(posicoes_ocupadas)
- 
-        print(f"matriz_transformada:{matriz_transformada}")
- 
+  
         nova_matriz = preencher_parametro_box(matriz_transformada)
     
         imprimir_tamanho_matriz(nova_matriz)
         plot_boxes(5,10, nova_matriz)
+        plot_boxes_v1(m, n, posicoes_ocupadas)
             
         ids_a_filtrar = [box.id for box in carga_positions]
         
@@ -68,7 +66,6 @@ def verificar_cargas():
             "carga_pre_alocada":  [box.to_dict() for box in objetos_filtrados]
         }), 200
         else:
-            plot_boxes_v1(m, n, posicoes_ocupadas)
             if(not carga_alocada_box_carregamento):
                 return jsonify({
                 "msg": f"Problema ao escalar box carregamento"
@@ -80,12 +77,10 @@ def verificar_cargas():
 
         # Retornando a resposta
 
-
     except Exception as e:
         return jsonify({"erro": str(e)}), 500
 
 if __name__ == '__main__':
-    print("entrou")
     iniciar_alocacao(m,n)
     iniciar_alocacao_reais(5,10)
     app.run(debug=True)

@@ -257,7 +257,6 @@ def recuperar_matriz(m, n):
 
         # Verifique se os índices de linha e coluna são válidos
         if linha >= m or coluna >= n or linha < 0 or coluna < 0:
-            print(f"Índices inválidos: linha={linha}, coluna={coluna}")
             continue  # Pula a iteração se os índices forem inválidos
         
         # Cria o objeto Box

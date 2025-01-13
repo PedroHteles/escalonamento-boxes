@@ -32,18 +32,15 @@ class Box:
 
         """Verifica se a soma do volume das cargas atuais e a carga a ser adicionada não ultrapassa o volume do box."""
         volume_total = sum(c.volume for c in self.cargas) + carga.volume
-        print(f"volume_total:{volume_total} volume_parametro:{volume_parametro}")
         return volume_total <= volume_parametro 
 
     def alocar_carga(self, carga,volume=5):
         if len(self.cargas) < 2 and self.ocupado == False:
-            print(f"carga:{ carga.volume} volume:{self.volume} cargas:{len(self.cargas)}")
             if carga.volume > volume and len(self.cargas) == 0:
                 self.cargas.append(carga)
                 self.ocupado = True  # O box fica ocupado quando 2 cargas estão alocadas.
                 return True  # Retorna True indicando que o box foi ocupado.
             else:
-                print("consigo lhe ver")
                 if len(self.cargas) <= 2 and carga.volume <= volume :
                     self.cargas.append(carga)
                     if len(self.cargas) == 2:
