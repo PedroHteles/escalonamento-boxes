@@ -1,8 +1,9 @@
 from flask  import Flask, request, jsonify
 from carga import Carga
-from teste import iniciar_alocacao,alocar
-from utils import plot_boxes,transformar_matriz,imprimir_tamanho_matriz
-from dbUtils import atualizar_banco_com_cargas
+from teste import iniciar_alocacao,iniciar_alocacao_reais,alocar
+from utils import plot_boxes,plot_boxes_v1,transformar_matriz,imprimir_tamanho_matriz,definir_pares
+from dbUtils import atualizar_banco_com_cargas,atualizar_banco_com_cargas_old
+from box import preencher_parametro_box
 
 
 m, n = 9, 10  # Dimensões da matriz
@@ -38,16 +39,36 @@ def verificar_cargas():
         cargas_sorted = sorted(cargas, key=lambda carga: carga.sequencia, reverse=False)
         
         gravou ,carga_positions,posicoes_ocupadas,cargas_nao_alocadas,carga_alocada_box_carregamento,matriz = alocar(m,n, cargas_sorted,5,12)    
+
+        print(f"alocar:{posicoes_ocupadas}")
         # Aplicando a função
         matriz_transformada = transformar_matriz(posicoes_ocupadas)
-        plot_boxes(m,n, posicoes_ocupadas)
-        plot_boxes(5,10, matriz_transformada)
+ 
+        print(f"matriz_transformada:{matriz_transformada}")
+ 
+        nova_matriz = preencher_parametro_box(matriz_transformada)
+    
+        imprimir_tamanho_matriz(nova_matriz)
+        plot_boxes(5,10, nova_matriz)
+            
+        ids_a_filtrar = [box.id for box in carga_positions]
+        
+        objetos_filtrados = [
+            box
+            for row in nova_matriz
+            for box in row
+            if box.id in ids_a_filtrar
+        ]
         
         if(gravou and carga_alocada_box_carregamento):
+            grupo_encontrado = next((carga.grupo for carga in cargas), None)
+            atualizar_banco_com_cargas(5, 10, matriz_transformada, idGrupo=grupo_encontrado)
+            atualizar_banco_com_cargas_old(m, n, posicoes_ocupadas, idGrupo=grupo_encontrado)
             return jsonify({
-            "carga_alocada":  [box.to_dict() for box in carga_positions]
+            "carga_pre_alocada":  [box.to_dict() for box in objetos_filtrados]
         }), 200
         else:
+            plot_boxes_v1(m, n, posicoes_ocupadas)
             if(not carga_alocada_box_carregamento):
                 return jsonify({
                 "msg": f"Problema ao escalar box carregamento"
@@ -66,4 +87,5 @@ def verificar_cargas():
 if __name__ == '__main__':
     print("entrou")
     iniciar_alocacao(m,n)
+    iniciar_alocacao_reais(5,10)
     app.run(debug=True)

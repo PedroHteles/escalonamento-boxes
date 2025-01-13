@@ -1,7 +1,7 @@
 from pulp import LpProblem, LpVariable, LpMinimize
 from carga import verificar_carga_alocada,verificar_se_alguma_carga_alocada,verificar_se_todos_volumes_e_superior
 from box import Box,desocupar_boxes
-from dbUtils import criar_tabelas,contar_boxes_desocupados,inserir_boxes,recuperar_matriz,verificar_cargas_gravadas
+from dbUtils import criar_tabelas,contar_boxes_desocupados,inserir_boxes,inserir_boxes_reais,recuperar_matriz,verificar_cargas_gravadas
 
 def mover_linha(bolean, linha_atual, coluna_atual, m):
     if not bolean:
@@ -37,6 +37,8 @@ def alocar_em_linhas_impares(carga, linha_atual, coluna_atual, m, posicoes_ocupa
                     prob += C[linha_atual][coluna_atual] == 1, f"Carga_na_posicao_{linha_atual}_{coluna_atual}"
                     prob += C[linha_atual + 1][coluna_atual] == 1, f"Carga_na_posicao_{linha_atual + 1}_{coluna_atual}"
                     carga.alocada = True
+                    carga.alocar_box(posicoes_ocupadas[linha_atual][coluna_atual])
+                    carga.alocar_box(posicoes_ocupadas[linha_atual + 1][coluna_atual])
                     return carga,prob, linha_atual, coluna_atual, True
                 
         # Verifica se a linha atual é a última        
@@ -109,6 +111,7 @@ def alocar_carga(carga, posicoes_ocupadas, linha_atual, coluna_atual, m, n, prob
                             posicao_atual_ocupada = posicoes_ocupadas[linha_atual][coluna_atual].ocupado
 
                             carga.alocada = True
+                            carga.alocar_box(posicoes_ocupadas[linha_atual][coluna_atual])
                             qtd_carga_alocada += 1
 
                             if (
@@ -160,7 +163,6 @@ def alocar_cargas(m, n, cargas, posicoes_iniciais_ocupadas=None,volume=5,volume_
 
     prob += 0  # Sem objetivo direto, as restrições determinam alocação
     if verificar_se_todos_volumes_e_superior(cargas,volume_box_duplo):
-        print("aereoreo")
         for carga in cargas:
             if carga == min(cargas, key=lambda carga: carga.sequencia):
                 carga.forcar_escala()  
@@ -201,68 +203,7 @@ def alocar_cargas(m, n, cargas, posicoes_iniciais_ocupadas=None,volume=5,volume_
                     carga_positions.append(posicoes_ocupadas[i][j])
                     posicoes_ocupadas[i][j].ocupado = True  # Marca como ocupado
 
-    cargas_nao_alocadas = [carga for carga in cargas if not carga.alocada]
-    
-    # if not carga_alocada_box_carregamento:
-        
-    #     carga_alocada_box_carregamento = True
-    #     carga_positions = []
-
-    #     desocupar_boxes(posicoes_ocupadas, cargas)
-    #     desocupar_boxes(posicoes_iniciais_ocupadas, cargas)      
-
-    #     for carga in cargas:
-    #         if carga == min(cargas, key=lambda carga: carga.sequencia):
-    #             carga.forcar_escala()  
-    #         carga.desocupar()  # Chama o método desocupar para cada carga
-
-
-    #     prob = LpProblem("Alocacao_de_Boxes", LpMinimize)
-    #     C = LpVariable.dicts("Carga", (range(m), range(n)), cat="Binary")
-
-    #     prob += 0  # Sem objetivo direto, as restrições determinam alocação
-
-    #     # Matriz para controlar as posições já alocadas
-    #     posicoes_ocupadas = [
-    #         [Box(i, j, ocupado=box.ocupado, cargas=box.cargas) for j, box in enumerate(row)] 
-    #         for i, row in enumerate(posicoes_iniciais_ocupadas)
-    #     ]
-
-    #     if posicoes_iniciais_ocupadas:
-    #         for i in range(m):
-    #             for j in range(n):
-    #                 if posicoes_iniciais_ocupadas[i][j].ocupado:
-    #                     prob += C[i][j] == 1, f"Box_{i}_{j}_ocupado"
-    #                     posicoes_ocupadas[i][j].ocupado = True
-        
-    #     linha_atual, coluna_atual = 0, n - 1
-    #     primeira_carga_alocada = False 
-    #     qtd_carga_alocada = 0
-
-    #     for carga in cargas:
-    #         carga, linha_atual, coluna_atual, qtd_carga_alocada, primeira_carga_alocada, prob = \
-    #         alocar_carga(carga, posicoes_ocupadas, linha_atual, coluna_atual, m, n, prob, C, volume, volume_box_duplo, cargas, primeira_carga_alocada, qtd_carga_alocada)
-
-    #     prob.solve()
-
-    #     # Coletar as posições específicas das cargas recebidas no parâmetro
-    #     carga_positions = []
-    #     carga_alocada_box_carregamento=False
-    #     for i in range(m):
-    #         for j in range(n):
-    #             # Filtrar apenas as cargas recebidas como parâmetro
-    #             for carga in posicoes_ocupadas[i][j].cargas:
-    #                 if carga in cargas:
-    #                     if(i == 0):
-    #                         carga_alocada_box_carregamento = True
-    #                     carga_positions.append(posicoes_ocupadas[i][j])
-    #                     posicoes_ocupadas[i][j].ocupado = True  # Marca como ocupado
-
-        
-    #     cargas_nao_alocadas = [carga for carga in cargas if not carga.alocada]
-    
-    #     return carga_positions, posicoes_ocupadas, qtd_carga_alocada,cargas_nao_alocadas ,carga_alocada_box_carregamento
-                      
+    cargas_nao_alocadas = [carga for carga in cargas if not carga.alocada]                      
     return carga_positions, posicoes_ocupadas, qtd_carga_alocada,cargas_nao_alocadas ,carga_alocada_box_carregamento
 
 
@@ -271,6 +212,12 @@ def iniciar_alocacao(m,n):
     matriz_inicial = [[Box(i, j) for j in range(n)] for i in range(m)]
     inserir_boxes(matriz_inicial)
 
+def iniciar_alocacao_reais(m,n):
+    criar_tabelas()
+    matriz_inicial = [[Box(i, j) for j in range(n)] for i in range(m)]
+    inserir_boxes_reais(matriz_inicial)
+    
+    
 def alocar(m,n, cargas,volume, volume_box_duplo):    
     matriz = recuperar_matriz(m, n)
     cargas_filtradas = verificar_cargas_gravadas(cargas)
