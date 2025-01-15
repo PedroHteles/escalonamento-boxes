@@ -1,11 +1,9 @@
-from flask  import Flask, request, jsonify,g,abort
+from flask  import Flask, request, jsonify,g
 from carga import Carga,separar_cargas,carga_com_menor_sequencia
 from box import calcular_boxes
 from box_allocation import update_box,check_carga,update_grupo
 import sqlite3
 
-m, n = 9, 10  # Dimensões da matriz
-mr, nr = 5, 10  # Dimensões da matriz
 app = Flask(__name__)
 
 
@@ -48,26 +46,6 @@ def manage_transaction(response):
         g.db.close()  # Fecha a conexão com o banco de dados
     print(f"response={response}")
     return response  # Retorna a resposta ao cliente
-
-# Exemplo de rota
-@app.route('/teste', methods=['POST'])
-def teste():
-    try:
-        # Lógica da requisição que chama a função update_box
-        carga = 123  # Exemplo de carga
-        tipo_box = "filho"
-        tipo_escala = "carregamento"
-
-        # Chamando a função update_box do outro arquivo
-        teste = update_box(carga, tipo_box, tipo_escala)
-        print (teste)
-        return jsonify({
-            "carga_pre_alocada":  "teste"
-        }), 200
-    except Exception as e:
-        return jsonify({"message": "Ocorreu um erro durante a operação.", "error": str(e)}), 500
-  # Relevanta a exceção para propagar o erro para o teardown_request
-
 
 # Rota POST para receber e verificar cargas
 @app.route('/verificar_cargas', methods=['POST'])

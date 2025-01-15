@@ -527,26 +527,6 @@ def check_carga(carga):
       
 
 criar_tabelas_e_trigger()   
-# Exemplo de uso
-# # Exemplo de uso
-
-# if check_carga(carga):
-#     print(f"Valor {carga} encontrado nas tabelas.")
-# else:
-#     print(f"Valor {carga} não encontrado nas tabelas.")
-# updated_id = update_box(11,tipo_box, tipo_escala)
-
-
-# # Exemplo de uso
-# tipo_box = "filho"
-# tipo_escala = "normal"
-
-# updated_id = update_box(12,tipo_box, tipo_escala)
-# updated_id = update_box(13,tipo_box, tipo_escala)
-
-
-
-
 
 # Criar as tabelas e testar os métodos de inserção
 # inserir_box("31", 1, False,5.0, "carregamento")
@@ -735,8 +715,5 @@ criar_tabelas_e_trigger()
 # inserir_grupo("831", 18, False,5.0)
 # inserir_grupo("841", 19, False,5.0)
 # inserir_grupo("851", 20, False,5.0)
-
-
-
 
 print("Tabelas criadas e registros inseridos com sucesso.")
