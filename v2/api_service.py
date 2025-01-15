@@ -130,7 +130,6 @@ def verificar_cargas():
                 update_grupo(carga_encontrada.carga,resultado.tipo_box, "normal")
                 if check_carga(carga_encontrada.carga):
                     raise ValueError(f"carga: {carga_encontrada.carga} ja foi escalada.") 
-                print(resultado.tipo_box)
                 resultado.escalada = True
 
             for carga_para_escalar in grupo_cargas:
@@ -138,10 +137,8 @@ def verificar_cargas():
                     update_box(carga_para_escalar.carga,carga_para_escalar.tipo_box, "normal")
                     if check_carga(carga_para_escalar.carga):
                         raise ValueError(f"carga: {carga.carga} ja foi escalada.") 
-                    print(carga_para_escalar.tipo_box)
-                    
+                    resultado.escalada = True
 
-        
         return jsonify({
             "carga_pre_alocada":  [carga.to_dict() for carga in cargas_sorted]
         }), 200
