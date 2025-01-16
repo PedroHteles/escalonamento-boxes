@@ -13,8 +13,6 @@ app.use(cors());
 app.use(express.json());
 const port = 5000;
 
-app.use(express.json()); // Para que o Express entenda requisições JSON
-
 // Função para verificar e processar cargas
 app.post('/verificar_cargas', async (req, res) => {
     const db = new sqlite3.Database('box_allocation.db', sqlite3.OPEN_READWRITE, (err) => {

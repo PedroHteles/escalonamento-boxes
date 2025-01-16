@@ -50,7 +50,6 @@ export async function updateBox(db, carga, sequencia_carga, viagem_carga, tipo_b
     }
 }
 
-
 // Função para atualizar o estado de uma entrada na tabela 'box'
 export async function updateGrupo(db, carga, sequencia_carga, viagem_carga) {
     // A transação começa sendo iniciada externamente, ou seja, no código que chama essa função
@@ -90,6 +89,7 @@ export async function updateGrupo(db, carga, sequencia_carga, viagem_carga) {
         throw new Error(`Erro inesperado: ${error.message}`);
     }
 }
+
 // Função para atualizar o estado de uma entrada na tabela 'box'
 export async function geraLogEscala(db, box, sequencia_carregamento, carga, sequencia_baixa, viagem, peso_carga, previsao_container) {
     // A transação começa sendo iniciada externamente, ou seja, no código que chama essa função

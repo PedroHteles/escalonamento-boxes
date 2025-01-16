@@ -1,6 +1,5 @@
 import sqlite3 from 'sqlite3';
 
-
 export function checkCarga(carga) {
     const query = `
     SELECT b.carga
@@ -41,7 +40,6 @@ export function checkCarga(carga) {
         });
     });
 }
-
 
 export function buscarCargasEscaladas() {
     const query = `
@@ -100,4 +98,3 @@ export function buscarCargasEscaladas() {
         });
     });
 }
-
