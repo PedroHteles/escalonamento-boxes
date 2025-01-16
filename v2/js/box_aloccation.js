@@ -1,5 +1,39 @@
 import sqlite3 from 'sqlite3';
 
+
+function criarTabelaLogs() {
+    // Conectar ao banco de dados (ou criar um novo arquivo se não existir)
+    const db = new sqlite3.Database('box_allocation.db');
+
+    // Criar a tabela 'box' se ela não existir
+    db.serialize(() => {
+        db.run(`
+            CREATE TABLE IF NOT EXISTS log_boxes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                box TEXT,
+                sequencia_carregamento INTEGER,
+                carga TEXT UNIQUE,
+                sequencia_baixa INTEGER,
+                viagem TEXT,
+                peso_carga TEXT,
+                previsao_container TEXT,
+                data_hora TEXT
+            )
+        `);
+
+        console.log('Tabelas criadas com sucesso!');
+    });
+
+    // Fechar a conexão com o banco de dados
+    db.close((err) => {
+        if (err) {
+            console.error('Erro ao fechar a conexão com o banco de dados:', err.message);
+        } else {
+            console.log('Conexão com o banco de dados fechada.');
+        }
+    });
+}
+
 function criarTabelaBox() {
     // Conectar ao banco de dados (ou criar um novo arquivo se não existir)
     const db = new sqlite3.Database('box_allocation.db');
@@ -105,8 +139,6 @@ function criarTriggerBoxGrupoComTravaUpdate() {
     });
 }
 
-
-
 function criarTriggerBoxGrupoComTrava() {
     // Conectar ao banco de dados
     const db = new sqlite3.Database('box_allocation.db');
@@ -147,7 +179,6 @@ function criarTriggerBoxGrupoComTrava() {
     });
 }
 
-
 function criarTriggerBoxGrupoLiberaBoxes() {
     // Conectar ao banco de dados
     const db = new sqlite3.Database('box_allocation.db');
@@ -182,7 +213,6 @@ function criarTriggerBoxGrupoLiberaBoxes() {
         }
     });
 }
-
 
 function criarTriggerLiberarGrupo() {
     // Conectar ao banco de dados
@@ -261,7 +291,6 @@ function criarTriggerOcuparGrupoSeBoxAlocado() {
     });
 }
 
-
 function criarTriggerOcuparPaiSeFilhosOcupados() {
     // Conectar ao banco de dados
     const db = new sqlite3.Database('box_allocation.db');
@@ -337,7 +366,6 @@ function criarTriggerOcuparFilhosSePaiOcupadoV3() {
     });
 }
 
-
 function criarTriggerOcuparFilhosSePaiOcupado() {
     // Conectar ao banco de dados
     const db = new sqlite3.Database('box_allocation.db');
@@ -378,7 +406,6 @@ function criarTriggerOcuparFilhosSePaiOcupado() {
         }
     });
 }
-
 
 function criarTriggerDesocuparFilhosSePaiOcupado() {
     // Conectar ao banco de dados
@@ -465,3 +492,5 @@ function apagarTriggers() {
         }
     });
 }
+
+criarTabelaLogs()
