@@ -12,6 +12,8 @@ def criar_tabela_box():
             sequencia INTEGER NOT NULL,
             ocupado BOOLEAN NOT NULL DEFAULT 0,
             carga TEXT,
+            sequencia_carga INTEGER,
+            viagem_carga TEXT,
             volume REAL NOT NULL,
             tipo TEXT NOT NULL CHECK(tipo IN ('carregamento','normal','filho','grupo')),
             id_pai INTEGER,
@@ -27,6 +29,8 @@ def criar_tabela_box():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             box TEXT NOT NULL,
             carga TEXT,
+            sequencia_carga INTEGER,
+            viagem_carga TEXT,
             volume REAL NOT NULL,
             sequencia INTEGER NOT NULL,
             ocupado BOOLEAN NOT NULL DEFAULT 0
@@ -36,8 +40,6 @@ def criar_tabela_box():
     # Confirmar as mudanças e fechar a conexão
     conexao.commit()
     conexao.close()
-
-
 
 def criar_trigger_box_grupo_com_trava_update():
     import sqlite3
@@ -82,7 +84,6 @@ def criar_trigger_box_grupo_com_trava_update():
     conexao.commit()
     conexao.close()
 
-
 def criar_trigger_box_grupo_com_trava():
     import sqlite3
 
@@ -112,7 +113,6 @@ def criar_trigger_box_grupo_com_trava():
     conexao.commit()
     conexao.close()
 
-
 def criar_trigger_box_grupo_libera_boxes():
     import sqlite3
 
@@ -136,7 +136,6 @@ def criar_trigger_box_grupo_libera_boxes():
     # Confirmar as mudanças e fechar a conexão
     conexao.commit()
     conexao.close()
-
 
 def criar_trigger_liberar_grupo():
     import sqlite3
@@ -168,7 +167,6 @@ def criar_trigger_liberar_grupo():
     # Confirmar as mudanças e fechar a conexão
     conexao.commit()
     conexao.close()
-
 
 def criar_trigger_ocupar_grupo_se_box_alocado():
     import sqlite3
@@ -340,32 +338,31 @@ def apagar_triggers():
     conexao.commit()
     conexao.close()
 
-def inserir_box(box, sequencia, ocupado, volume, tipo,carga=None, id_pai=None, id_grupo=None):
+def inserir_box(box, sequencia, ocupado, volume, tipo,carga=None,sequencia_carga=None,viagem_carga=None, id_pai=None, id_grupo=None):
     import sqlite3
     conexao = sqlite3.connect('box_allocation.db')
     cursor = conexao.cursor()
 
     cursor.execute('''
-        INSERT INTO box (box, sequencia, ocupado, carga, volume, tipo, id_pai, id_grupo)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (box, sequencia, ocupado, carga, volume, tipo, id_pai, id_grupo))
+        INSERT INTO box (box, sequencia, ocupado, carga,sequencia_carga,viagem_carga, volume, tipo, id_pai, id_grupo)
+        VALUES (?, ?, ?, ?, ?, ?, ? ,?, ?, ?)
+    ''', (box, sequencia, ocupado, carga,sequencia_carga,viagem_carga, volume, tipo, id_pai, id_grupo))
 
     conexao.commit()
     conexao.close()
 
-def inserir_grupo(box,sequencia, ocupado, volume,carga=None):
+def inserir_grupo(box,sequencia, ocupado, volume,carga=None,sequencia_carga=None,viagem_carga=None):
     import sqlite3
     conexao = sqlite3.connect('box_allocation.db')
     cursor = conexao.cursor()
 
     cursor.execute('''
-        INSERT INTO grupo (box, sequencia, ocupado,carga, volume)
-        VALUES (?, ?, ?, ?, ?)
-    ''', (box,sequencia, ocupado,carga, volume))
+        INSERT INTO grupo (box, sequencia, ocupado,carga,sequencia_carga,viagem_carga, volume)
+        VALUES (?, ?, ?, ?, ?, ?)
+    ''', (box,sequencia, ocupado,carga,sequencia_carga,viagem_carga, volume))
 
     conexao.commit()
     conexao.close()
-    
         
 def criar_tabelas_e_trigger():
     criar_tabela_box()
@@ -379,9 +376,7 @@ def criar_tabelas_e_trigger():
     criar_trigger_ocupar_filhos_se_pai_ocupado_v3()
     criar_trigger_ocupar_filhos_se_pai_ocupado()
     
-
-
-def update_box(carga, tipo_box, tipo_escala):
+def update_box(carga,sequencia_carga,viagem_carga, tipo_box, tipo_escala):
     print(f"carga={carga} tipo_box={tipo_box} tipo_escala={tipo_escala}")
     
     from flask import g
@@ -399,7 +394,7 @@ def update_box(carga, tipo_box, tipo_escala):
     """
     query = """
     UPDATE box 
-    SET ocupado = 1, carga = :carga
+    SET ocupado = 1, carga = :carga, sequencia_carga = :sequencia_carga, viagem_carga = :viagem_carga
     WHERE id = (
     SELECT b.id
         FROM box b
@@ -425,7 +420,7 @@ def update_box(carga, tipo_box, tipo_escala):
     try:
         # Executa o UPDATE dentro da transação controlada pelo Flask
         cursor = g.db.cursor()
-        cursor.execute(query, {"carga": carga, "tipo_box": tipo_box, "tipo_escala": tipo_escala})
+        cursor.execute(query, {"carga": carga, "tipo_box": tipo_box, "tipo_escala": tipo_escala, "sequencia_carga": sequencia_carga, "viagem_carga": viagem_carga})
 
         # Verifica quantas linhas foram afetadas
         if cursor.rowcount > 0:
@@ -437,9 +432,7 @@ def update_box(carga, tipo_box, tipo_escala):
     except sqlite3.Error as e:
         return  ValueError(f"Erro ao atualizar a tabela 'box': {e}")
 
-
-
-def update_grupo(carga, tipo_box, tipo_escala):
+def update_grupo(carga,sequencia_carga,viagem_carga, tipo_box, tipo_escala):
     print(f"carga={carga} tipo_box={tipo_box} tipo_escala={tipo_escala}")
     
     from flask import g
@@ -457,7 +450,7 @@ def update_grupo(carga, tipo_box, tipo_escala):
     """
     query = """
     UPDATE grupo 
-    SET ocupado = 1, carga = :carga
+    SET ocupado = 1, carga = :carga , sequencia_carga = :sequencia_carga, viagem_carga = :viagem_carga
     WHERE id = (
     SELECT g.id 
     from grupo g  
@@ -469,7 +462,7 @@ def update_grupo(carga, tipo_box, tipo_escala):
     try:
         # Executa o UPDATE dentro da transação controlada pelo Flask
         cursor = g.db.cursor()
-        cursor.execute(query, {"carga": carga})
+        cursor.execute(query, {"carga": carga,"sequencia_carga": sequencia_carga,"viagem_carga": viagem_carga})
 
         # Verifica quantas linhas foram afetadas
         if cursor.rowcount > 0:
@@ -496,11 +489,11 @@ def check_carga(carga):
     """
     query = """
     SELECT b.carga
-    FROM box b
+        FROM box b
     WHERE b.carga = ?
     UNION ALL
     SELECT g.carga
-    FROM grupo g
+        FROM grupo g
     WHERE g.carga = ?
     LIMIT 1;
     """
@@ -526,6 +519,53 @@ def check_carga(carga):
         conexao.close()
       
 
+def buscar_cargas_escaladas():
+    from flask import g
+    import sqlite3
+
+    query = """
+    SELECT id
+        ,box
+        ,carga
+        ,viagem_carga
+        ,sequencia_carga
+    FROM grupo g
+    WHERE ocupado > 0 AND carga IS NOT NULL
+    UNION ALL
+    SELECT id
+        ,box
+        ,carga
+        ,viagem_carga
+        ,sequencia_carga
+    FROM box
+    WHERE ocupado > 0 
+    AND tipo IN ('normal', 'carregamento', 'filho') 
+    AND carga IS NOT NULL
+    ORDER BY viagem_carga, sequencia_carga;
+    """
+    
+    try:
+        # Conectar ao banco de dados
+        cursor = g.db.cursor()
+
+        cursor.execute(query)
+        
+        # Recuperar os resultados
+        rows = cursor.fetchall()
+        
+        print(rows)
+        
+        # Transformar os resultados em uma lista de dicionários
+        result = [
+            {"id": row[0], "box": row[1], "carga": row[2], "viagem_carga": row[3], "sequencia_carga": row[4]}
+            for row in rows
+        ]
+        return result
+    
+    except sqlite3.Error as e:
+        print(f"Erro ao acessar o banco de dados: {e}")
+        return []
+    
 criar_tabelas_e_trigger()   
 
 # Criar as tabelas e testar os métodos de inserção

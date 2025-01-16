@@ -1,22 +1,22 @@
 class Carga:
-    def __init__(self, carga, volume,sequencia= 0,grupo=None, prioridade_carregamento = False, tipo_box=None,escalada=False):
+    def __init__(self, carga, volume,sequencia= 0,viagem_carga=None, prioridade_carregamento = False, tipo_box=None,escalada=False):
         self.carga = carga  # Peso da carga
         self.volume = volume  # Volume da carga
-        self.grupo = grupo  # Volume da carga  
+        self.viagem_carga = viagem_carga  # Volume da carga  
         self.sequencia = sequencia  # Sequencia carregamento
         self.prioridade_carregamento = prioridade_carregamento
         self.tipo_box = tipo_box
         self.escalada = escalada
         
     def __repr__(self):
-        return f"Carga(carga={self.carga}, escalada={self.escalada},sequencia={self.sequencia},volume={self.volume}, grupro={self.grupo}, prioridade_carregamento={self.prioridade_carregamento}, tipo_box={self.tipo_box})\n"
+        return f"Carga(carga={self.carga}, escalada={self.escalada},sequencia={self.sequencia},volume={self.volume}, viagem_carga={self.viagem_carga}, prioridade_carregamento={self.prioridade_carregamento}, tipo_box={self.tipo_box})\n"
        
     def to_dict(self):
         return {
             "carga": self.carga,
             "volume": self.volume,
             "sequencia": self.sequencia,
-            "grupo": self.grupo,
+            "viagem_carga": self.viagem_carga,
         }
 
 # Função para separar as cargas

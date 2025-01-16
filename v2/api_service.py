@@ -1,7 +1,7 @@
 from flask  import Flask, request, jsonify,g
 from carga import Carga,separar_cargas,carga_com_menor_sequencia
 from box import calcular_boxes
-from box_allocation import update_box,check_carga,update_grupo
+from box_allocation import update_box,check_carga,update_grupo,buscar_cargas_escaladas
 import sqlite3
 
 app = Flask(__name__)
@@ -67,7 +67,7 @@ def verificar_cargas():
                     volume=carga_data['volume'],
                     sequencia=carga_data['sequencia'],
                     prioridade_carregamento=carga_data['prioridade_carregamento'],
-                    grupo=carga_data.get('grupo')
+                    viagem_carga=carga_data.get('viagem_carga')
                 )
                 cargas.append(carga)
             except KeyError as e:
@@ -77,16 +77,16 @@ def verificar_cargas():
         cargas_sorted = sorted(cargas, key=lambda carga: carga.sequencia, reverse=False)
         
         # Separando as cargas por grupo utilizando um dicionário
-        cargas_por_grupo = {}
+        cargas_por_viagem_carga = {}
 
         for carga in cargas_sorted:
-            grupo = carga.grupo
-            if grupo not in cargas_por_grupo:
-                cargas_por_grupo[grupo] = []
-            cargas_por_grupo[grupo].append(carga)
+            viagem_carga = carga.viagem_carga
+            if viagem_carga not in cargas_por_viagem_carga:
+                cargas_por_viagem_carga[viagem_carga] = []
+            cargas_por_viagem_carga[viagem_carga].append(carga)
 
         # Exemplo de como acessar as cargas por grupo
-        for grupo, grupo_cargas in cargas_por_grupo.items():    
+        for viagem_carga, grupo_cargas in cargas_por_viagem_carga.items():    
             
             lista_ordenada_escala = []
             quantidade_boxes = calcular_boxes(grupo_cargas, 12, 6)    
@@ -96,7 +96,7 @@ def verificar_cargas():
             for carga_encontrada in  carga_menor_sequencia: #carga que ira para um box de carregamento
                 resultado = next((carga for carga in grupo_cargas if carga.carga == carga_encontrada.carga), None)
                 
-                update_box(carga_encontrada.carga,carga_encontrada.tipo_box, "carregamento")
+                update_box(carga_encontrada.carga,carga_encontrada.sequencia,carga_encontrada.viagem_carga,carga_encontrada.tipo_box, "carregamento")
                 
                 if check_carga(carga_encontrada.carga):
                     raise ValueError(f"carga: {carga_encontrada.carga} ja foi escalada.") 
@@ -105,14 +105,14 @@ def verificar_cargas():
             
             for carga_encontrada in  gp:
                 resultado = next((carga for carga in grupo_cargas if carga.carga == carga_encontrada.carga), None)
-                update_grupo(carga_encontrada.carga,resultado.tipo_box, "normal")
+                update_grupo(carga_encontrada.carga,carga_encontrada.sequencia,carga_encontrada.viagem_carga,resultado.tipo_box, "normal")
                 if check_carga(carga_encontrada.carga):
                     raise ValueError(f"carga: {carga_encontrada.carga} ja foi escalada.") 
                 resultado.escalada = True
 
             for carga_para_escalar in grupo_cargas:
                 if(not carga_para_escalar.escalada):
-                    update_box(carga_para_escalar.carga,carga_para_escalar.tipo_box, "normal")
+                    update_box(carga_para_escalar.carga,carga_para_escalar.sequencia,carga_para_escalar.viagem_carga,carga_para_escalar.tipo_box, "normal")
                     if check_carga(carga_para_escalar.carga):
                         raise ValueError(f"carga: {carga.carga} ja foi escalada.") 
                     resultado.escalada = True
@@ -123,6 +123,17 @@ def verificar_cargas():
 
     except Exception as e:
         return jsonify({"erro": str(e)}), 500 
+
+@app.route('/cargas', methods=['GET'])
+def get_cargas():
+    """
+    Endpoint para retornar os dados de cargas.
+    
+    Returns:
+        JSON: Uma lista de cargas em formato JSON.
+    """
+    data = buscar_cargas_escaladas()
+    return jsonify(data), 200
     
     
 if __name__ == '__main__':
