@@ -1,6 +1,6 @@
 import express from 'express';
 import sqlite3 from 'sqlite3';
-import { updateBoxes, updateGrupo, geraLogEscala, limparTabelaLog } from './update_box.js';
+import { updateBoxes, updateGrupos, geraLogEscala, limparTabelaLog } from './update_box.js';
 import { checkCarga, buscarCargasEscaladas } from './query.js';
 import { separarCargas, cargaComMenorSequencia } from './Carga.js';
 import { Carga } from './Carga.js';
@@ -90,25 +90,23 @@ app.post('/verificar_cargas', async (req, res) => {
             const cargaMenorSequencia = cargaComMenorSequencia(cargasFiltradas.filhosPares, cargasFiltradas.normal);
 
 
+            const cargaBoxCarregamento = cargaMenorSequencia.length === 0
+            const cargaGrupoCarregamento = cargasFiltradas.grupo.length === 0
+
+            if (cargaBoxCarregamento && !cargaGrupoCarregamento) { //se nao houver carga to tipo normal/filho para escalar box carregamento forçar uma carga do box grupo
+                const elementoMovido = cargasFiltradas.grupo.shift(); // Remove o primeiro elemento
+                elementoMovido.tipoBox = "normal"
+                cargaMenorSequencia.push(elementoMovido); // Adiciona ao final de cargaBoxCarregamento
+            }
+
             await updateBoxes(db, cargaMenorSequencia.sort((a, b) => a.sequenciaCarregamento - b.sequenciaCarregamento), "carregamento")
                 .then(() => cargaMenorSequencia.forEach(carga => { carga.escalada = true; }))
 
-            await Promise.all(cargasFiltradas.grupo.sort((a, b) => a.sequenciaCarregamento - b.sequenciaCarregamento).map(carga =>
-                updateGrupo(db, carga.carga, carga.sequenciaCarregamento, carga.viagem)
-                    .then(() => carga.escalada = true)
-            ));
+            await updateGrupos(db, cargasFiltradas.grupo.sort((a, b) => a.sequenciaCarregamento - b.sequenciaCarregamento))
+                .then(() => cargasFiltradas.grupo.sort((a, b) => a.sequenciaCarregamento - b.sequenciaCarregamento).forEach(carga => { carga.escalada = true; }))
 
             await updateBoxes(db, grupoCargas.filter(carga => !carga.escalada).sort((a, b) => a.sequenciaCarregamento - b.sequenciaCarregamento), "normal")
                 .then(() => grupoCargas.forEach(carga => { carga.escalada = true; }))
-
-
-            // await Promise.all(grupoCargas.filter(carga => !carga.escalada).sort((a, b) => a.sequenciaCarregamento - b.sequenciaCarregamento).map(carga => {
-            //     console.log("carga " + carga.carga + " tipoBox " + carga.tipoBox + " sequenciaCarregamento " + carga.sequenciaCarregamento)
-            //     updateBox(db, carga.carga, carga.sequenciaCarregamento, carga.viagem, carga.tipoBox, "normal")
-            //         .then(() => carga.escalada = true)
-            // }
-
-            // ));
 
         }
 

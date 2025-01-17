@@ -32,6 +32,11 @@ export function cargaComMenorSequencia(filhosPares, normal) {
     // Combina todas as cargas dos filhos (pares) e normal em uma lista
     const todasAsCargas = filhosPares.flat().concat(normal);
 
+    // Verifica se há cargas para processar
+    if (todasAsCargas.length === 0) {
+        return []; // Retorna uma lista vazia se não houver cargas
+    }
+
     // Encontra a carga com a menor sequência
     let cargaMenorSequencia = todasAsCargas.reduce((menor, cargaAtual) =>
         cargaAtual.sequenciaCarregamento < menor.sequenciaCarregamento ? cargaAtual : menor

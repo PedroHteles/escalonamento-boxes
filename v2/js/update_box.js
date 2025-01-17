@@ -48,45 +48,51 @@ export async function updateBoxes(db, cargas, tipo_escala) {
     }
 }
 
-// Função para atualizar o estado de uma entrada na tabela 'box'
-export async function updateGrupo(db, carga, sequencia_carga, viagem_carga) {
-    // A transação começa sendo iniciada externamente, ou seja, no código que chama essa função
+// Função para atualizar o estado de uma entrada na tabela 'grupo'
+export async function updateGrupos(db, grupos) {
     const query = `
-            UPDATE grupo 
-            SET ocupado = 1
-            ,carga = ? 
-            ,sequencia_carga = ?
-            ,viagem_carga = ?
-            WHERE id = (
-                SELECT g.id 
-                from grupo g  
-                where ocupado = 0 
-                ORDER by sequencia 
-                LIMIT 1
-            );
+        UPDATE grupo 
+        SET ocupado = 1
+        ,carga = ? 
+        ,sequencia_carga = ? 
+        ,viagem_carga = ? 
+        WHERE id = (
+            SELECT g.id 
+            FROM grupo g  
+            WHERE ocupado = 0 
+            ORDER BY sequencia 
+            LIMIT 1
+        );
     `;
 
     try {
-        // Executa a query dentro da transação fornecida
-        return new Promise((resolve, reject) => {
-            db.run(query, [carga, sequencia_carga, viagem_carga], function (err) {
-                if (err) {
-                    reject(new Error(`Erro ao executar a query: ${err.message}`));
-                } else {
-                    if (this.changes > 0) {
-                        console.log(`carga: ${this.changes}`);
-                        resolve(carga); // Retorna a carga indicando sucesso
-                    } else {
-                        resolve(null); // Nenhum registro foi encontrado
-                    }
-                }
-            });
-        });
+        const results = [];
 
+        for (const { carga, sequenciaCarregamento, viagem } of grupos) {
+            const result = await new Promise((resolve, reject) => {
+                db.run(query, [carga, sequenciaCarregamento, viagem], function (err) {
+                    if (err) {
+                        reject(new Error(`Erro ao executar a query para carga ${carga}: ${err.message}`));
+                    } else {
+                        if (this.changes > 0) {
+                            console.log(`carga ${carga} atualizada com sucesso`);
+                            resolve(carga); // Retorna a carga indicando sucesso
+                        } else {
+                            resolve(null); // Nenhum registro foi encontrado
+                        }
+                    }
+                });
+            });
+
+            results.push(result); // Armazena o resultado da operação
+        }
+
+        return results; // Retorna os resultados em ordem
     } catch (error) {
-        throw new Error(`Erro inesperado: ${error.message}`);
+        throw new Error(`Erro inesperado ao executar updates: ${error.message}`);
     }
 }
+
 
 // Função para atualizar o estado de uma entrada na tabela 'box'
 export async function geraLogEscala(db, box, sequencia_carregamento, carga, sequencia_baixa, viagem, peso_carga, previsao_container) {
