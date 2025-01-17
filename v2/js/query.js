@@ -82,9 +82,9 @@ export function buscarCargasEscaladas() {
                 const result = rows.map((row) => ({
                     id: row.id,
                     box: row.box,
-                    carga: row.carga,
-                    viagem: row.viagem_carga,
-                    sequenciaCarga: row.sequencia_carga,
+                    carga: Number(row.carga),
+                    viagem: Number(row.viagem_carga),
+                    sequenciaCarregamento: Number(row.sequencia_carga),
                 }));
                 resolve(result);
             }
@@ -98,3 +98,52 @@ export function buscarCargasEscaladas() {
         });
     });
 }
+
+
+
+export function atualizarDados(viagemCarga) {
+    // Caminho para o arquivo do banco de dados SQLite
+    const databasePath = './seu_banco_de_dados.db';
+
+    // Conecta ao banco de dados SQLite
+    const db = new sqlite3.Database('box_allocation.db', (err) => {
+        if (err) {
+            console.error('Erro ao conectar ao banco de dados:', err.message);
+            reject([]);
+        }
+    });
+    // Comandos de atualização
+    const queryBox = `
+    UPDATE box 
+    SET ocupado=0, sequencia_carga=NULL, carga=NULL, viagem_carga=NULL 
+    WHERE viagem_carga = ?;
+  `;
+    const queryGrupo = `
+    UPDATE grupo 
+    SET ocupado=0, sequencia_carga=NULL, carga=NULL, viagem_carga=NULL 
+    WHERE viagem_carga = ?;
+  `;
+
+    // Executando as queries
+    db.serialize(() => {
+        db.run(queryBox, [viagemCarga], function (err) {
+            if (err) {
+                console.error('Erro ao atualizar a tabela "box":', err.message);
+            }
+        });
+
+        db.run(queryGrupo, [viagemCarga], function (err) {
+            if (err) {
+                console.error('Erro ao atualizar a tabela "grupo":', err.message);
+            }
+        });
+    });
+
+    // Fechando a conexão
+    db.close((err) => {
+        if (err) {
+            console.error('Erro ao fechar a conexão com o banco de dados:', err.message);
+        }
+    });
+}
+

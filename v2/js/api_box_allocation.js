@@ -1,7 +1,7 @@
 import express from 'express';
 import sqlite3 from 'sqlite3';
 import { updateBoxes, updateGrupos, geraLogEscala, limparTabelaLog } from './update_box.js';
-import { checkCarga, buscarCargasEscaladas } from './query.js';
+import { checkCarga, buscarCargasEscaladas, atualizarDados } from './query.js';
 import { separarCargas, cargaComMenorSequencia } from './Carga.js';
 import { Carga } from './Carga.js';
 import { calcularBoxes } from './box.js';
@@ -94,7 +94,9 @@ app.post('/verificar_cargas', async (req, res) => {
             const cargaGrupoCarregamento = cargasFiltradas.grupo.length === 0
 
             if (cargaBoxCarregamento && !cargaGrupoCarregamento) { //se nao houver carga to tipo normal/filho para escalar box carregamento forçar uma carga do box grupo
-                const elementoMovido = cargasFiltradas.grupo.shift(); // Remove o primeiro elemento
+                const elementoMovido = cargasFiltradas.grupo
+                    .sort((a, b) => a.sequenciaCarregamento - b.sequenciaCarregamento)
+                    .shift();
                 elementoMovido.tipoBox = "normal"
                 cargaMenorSequencia.push(elementoMovido); // Adiciona ao final de cargaBoxCarregamento
             }
@@ -121,10 +123,11 @@ app.post('/verificar_cargas', async (req, res) => {
             });
         });
         const cargasEscalada = await buscarCargasEscaladas();
-
-        return res.status(200).json({
-            carga_pre_alocada: cargasEscalada
-        });
+        if (cargasEscalada && cargasEscalada.length > 0) {
+            const viagemCarga = cargasEscalada[0].viagem;
+            atualizarDados(viagemCarga);
+        }
+        return res.status(200).json(cargasEscalada);
 
     } catch (error) {
         return res.status(500).json({ erro: error.message });
