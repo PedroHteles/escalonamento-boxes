@@ -1,13 +1,14 @@
 // Carga.js
 class Carga {
-    constructor(carga, volume, sequencia = 0, viagemCarga = null, prioridadeCarregamento = false, tipoBox = null, escalada = false) {
+    constructor(carga, previsaoContainer, sequenciaCarregamento = 0, viagem = null, prioridadeCarregamento = false, tipoBox = null, escalada = false, alocada = false) {
         this.carga = carga;  // Peso da carga
-        this.volume = volume;  // Volume da carga
-        this.viagemCarga = viagemCarga;  // Viagem da carga
-        this.sequencia = sequencia;  // Sequência do carregamento
+        this.previsaoContainer = previsaoContainer;  // Volume da carga
+        this.viagem = viagem;  // Viagem da carga
+        this.sequenciaCarregamento = sequenciaCarregamento;  // Sequência do carregamento
         this.prioridadeCarregamento = prioridadeCarregamento;  // Se tem prioridade no carregamento
         this.tipoBox = tipoBox;  // Tipo do box (será preenchido na alocação)
         this.escalada = escalada;  // Se é escalada
+        this.alocada = alocada;  // Se é escalada
     }
 }
 
@@ -33,19 +34,20 @@ export function cargaComMenorSequencia(filhosPares, normal) {
 
     // Encontra a carga com a menor sequência
     let cargaMenorSequencia = todasAsCargas.reduce((menor, cargaAtual) =>
-        cargaAtual.sequencia < menor.sequencia ? cargaAtual : menor
+        cargaAtual.sequenciaCarregamento < menor.sequenciaCarregamento ? cargaAtual : menor
     );
 
     // Verifica se a carga com menor sequência pertence a um par
     for (const par of filhosPares) {
         if (par.includes(cargaMenorSequencia)) {
-            return par; // Retorna o par se a carga for do tipo "filho"
+            return par; // Retorna o par como está
         }
     }
 
-    // Se não pertencer a um par, retorna apenas a carga normal
-    return cargaMenorSequencia;
+    // Se não pertencer a um par, retorna a carga individual dentro de uma lista
+    return [cargaMenorSequencia];
 }
+
 
 
 // Exportando a classe Carga

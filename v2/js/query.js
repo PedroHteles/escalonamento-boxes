@@ -83,7 +83,7 @@ export function buscarCargasEscaladas() {
                     id: row.id,
                     box: row.box,
                     carga: row.carga,
-                    viagemCarga: row.viagem_carga,
+                    viagem: row.viagem_carga,
                     sequenciaCarga: row.sequencia_carga,
                 }));
                 resolve(result);

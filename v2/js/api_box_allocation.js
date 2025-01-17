@@ -1,6 +1,6 @@
 import express from 'express';
 import sqlite3 from 'sqlite3';
-import { updateBox, updateGrupo, geraLogEscala, limparTabelaLog } from './update_box.js';
+import { updateBoxes, updateGrupo, geraLogEscala, limparTabelaLog } from './update_box.js';
 import { checkCarga, buscarCargasEscaladas } from './query.js';
 import { separarCargas, cargaComMenorSequencia } from './Carga.js';
 import { Carga } from './Carga.js';
@@ -34,15 +34,15 @@ app.post('/verificar_cargas', async (req, res) => {
         // Convertendo os dados para objetos
         const cargas = cargasData.map(cargaData => {
 
-            if (!cargaData.carga || !cargaData.volume || !cargaData.sequencia || !cargaData.viagem_carga) {
+            if (cargaData.carga == null || cargaData.previsaoContainer == null || cargaData.viagem == null) {
                 throw new Error('Campo obrigatório ausente');
             }
             // Criando a instância de Carga corretamente
             return new Carga(
                 cargaData.carga,
-                cargaData.volume,
-                cargaData.sequencia,
-                cargaData.viagem_carga || null,
+                cargaData.previsaoContainer,
+                cargaData.sequenciaCarregamento || 999,
+                cargaData.viagem || null,
                 cargaData.prioridade_carregamento || false,
                 cargaData.tipo_box || null,
                 false // escalada default para false
@@ -50,16 +50,16 @@ app.post('/verificar_cargas', async (req, res) => {
         });
 
         // Ordenando as cargas pela sequência
-        const cargasSorted = cargas.sort((a, b) => a.sequencia - b.sequencia);
+        const cargasSorted = cargas.sort((a, b) => a.sequenciaCarregamento - b.sequenciaCarregamento);
 
         // Separando as cargas por grupo
-        const cargasPorViagemCarga = cargasSorted.reduce((acc, item) => {
+        const cargasPorviagem = cargasSorted.reduce((acc, item) => {
             // Verifica se o 'viagem_carga' já está no acumulador
-            if (!acc[item.viagemCarga]) {
-                acc[item.viagemCarga] = [];
+            if (!acc[item.viagem]) {
+                acc[item.viagem] = [];
             }
             // Adiciona o item ao grupo correspondente
-            acc[item.viagemCarga].push(item);
+            acc[item.viagem].push(item);
             return acc;
         }, {});
 
@@ -78,8 +78,8 @@ app.post('/verificar_cargas', async (req, res) => {
         const volumeBoxFilho = 6;
 
         // Processa cada grupo de cargas por viagem
-        for (let viagemCarga in cargasPorViagemCarga) {
-            const grupoCargas = cargasPorViagemCarga[viagemCarga];
+        for (let viagem in cargasPorviagem) {
+            const grupoCargas = cargasPorviagem[viagem].sort((a, b) => a.sequenciaCarregamento - b.sequenciaCarregamento);
 
             const alreadyEscalated = await Promise.all(grupoCargas.map(carga => checkCarga(carga.carga)));
             if (alreadyEscalated.some(result => result)) throw new Error(`Carga já foi escalada.`);
@@ -89,20 +89,26 @@ app.post('/verificar_cargas', async (req, res) => {
             let cargasFiltradas = separarCargas(grupoCargas, volumeBoxPai, volumeBoxFilho);
             const cargaMenorSequencia = cargaComMenorSequencia(cargasFiltradas.filhosPares, cargasFiltradas.normal);
 
-            await Promise.all(cargaMenorSequencia.map(carga =>
-                updateBox(db, carga.carga, carga.sequencia, carga.viagemCarga, carga.tipoBox, "carregamento")
+
+            await updateBoxes(db, cargaMenorSequencia.sort((a, b) => a.sequenciaCarregamento - b.sequenciaCarregamento), "carregamento")
+                .then(() => cargaMenorSequencia.forEach(carga => { carga.escalada = true; }))
+
+            await Promise.all(cargasFiltradas.grupo.sort((a, b) => a.sequenciaCarregamento - b.sequenciaCarregamento).map(carga =>
+                updateGrupo(db, carga.carga, carga.sequenciaCarregamento, carga.viagem)
                     .then(() => carga.escalada = true)
             ));
 
-            await Promise.all(cargasFiltradas.grupo.map(carga =>
-                updateGrupo(db, carga.carga, carga.sequencia, carga.viagemCarga)
-                    .then(() => carga.escalada = true)
-            ));
+            await updateBoxes(db, grupoCargas.filter(carga => !carga.escalada).sort((a, b) => a.sequenciaCarregamento - b.sequenciaCarregamento), "normal")
+                .then(() => grupoCargas.forEach(carga => { carga.escalada = true; }))
 
-            await Promise.all(grupoCargas.filter(carga => !carga.escalada).map(carga =>
-                updateBox(db, carga.carga, carga.sequencia, carga.viagemCarga, carga.tipoBox, "normal")
-                    .then(() => carga.escalada = true)
-            ));
+
+            // await Promise.all(grupoCargas.filter(carga => !carga.escalada).sort((a, b) => a.sequenciaCarregamento - b.sequenciaCarregamento).map(carga => {
+            //     console.log("carga " + carga.carga + " tipoBox " + carga.tipoBox + " sequenciaCarregamento " + carga.sequenciaCarregamento)
+            //     updateBox(db, carga.carga, carga.sequenciaCarregamento, carga.viagem, carga.tipoBox, "normal")
+            //         .then(() => carga.escalada = true)
+            // }
+
+            // ));
 
         }
 
@@ -112,14 +118,14 @@ app.post('/verificar_cargas', async (req, res) => {
                 if (err) {
                     reject(new Error(`Erro ao commitar a transação: ${err.message}`));
                 } else {
-                    console.log("commitou")
                     resolve();
                 }
             });
         });
+        const cargasEscalada = await buscarCargasEscaladas();
 
         return res.status(200).json({
-            carga_pre_alocada: cargasSorted
+            carga_pre_alocada: cargasEscalada
         });
 
     } catch (error) {
@@ -186,7 +192,6 @@ app.post('/inserir-log', (req, res) => {
                 if (err) {
                     reject(new Error(`Erro ao commitar a transação: ${err.message}`));
                 } else {
-                    console.log("commitou")
                     resolve();
                 }
             });

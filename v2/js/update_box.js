@@ -1,7 +1,4 @@
-// Função para atualizar o estado de uma entrada na tabela 'box'
-export async function updateBox(db, carga, sequencia_carga, viagem_carga, tipo_box, tipo_escala) {
-    // A transação começa sendo iniciada externamente, ou seja, no código que chama essa função
-
+export async function updateBoxes(db, cargas, tipo_escala) {
     const query = `
         UPDATE box
         SET ocupado = 1, carga = ?, sequencia_carga = ?, viagem_carga = ?
@@ -29,24 +26,25 @@ export async function updateBox(db, carga, sequencia_carga, viagem_carga, tipo_b
     `;
 
     try {
-        // Executa a query dentro da transação fornecida
-        return new Promise((resolve, reject) => {
-            db.run(query, [carga, sequencia_carga, viagem_carga, tipo_box, tipo_escala], function (err) {
-                if (err) {
-                    reject(new Error(`Erro ao executar a query: ${err.message}`));
-                } else {
-                    if (this.changes > 0) {
-                        console.log(`carga: ${this.changes}`);
-                        resolve(carga); // Retorna a carga indicando sucesso
-                    } else {
-                        resolve(null); // Nenhum registro foi encontrado
-                    }
-                }
-            });
-        });
+        const results = [];
 
+        for (const { carga, sequenciaCarregamento, viagem, tipoBox } of cargas) {
+            const result = await new Promise((resolve, reject) => {
+                db.run(query, [carga, sequenciaCarregamento, viagem, tipoBox, tipo_escala], function (err) {
+                    if (err) {
+                        reject(new Error(`Erro ao atualizar box para carga ${carga}: ${err.message}`));
+                    } else {
+                        resolve(this.changes); // Retorna a quantidade de linhas afetadas
+                    }
+                });
+            });
+
+            results.push(result); // Armazena o resultado do update
+        }
+
+        return results; // Retorna os resultados em ordem
     } catch (error) {
-        throw new Error(`Erro inesperado: ${error.message}`);
+        throw new Error(`Erro ao executar updates: ${error.message}`);
     }
 }
 
